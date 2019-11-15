@@ -171,6 +171,8 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
         int assetCount = gallery.getInt(gallery.getColumnIndex("assetCount"));
         album.putString("title", albumName);
         album.putInt("assetCount", assetCount);
+        String firstImageUri = "file://" + gallery.getString(gallery.getColumnIndex(MediaStore.Images.ImageColumns.DATA));
+        album.putString("firstImageUri", firstImageUri);
         return album;
     }
 
