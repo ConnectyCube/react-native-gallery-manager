@@ -167,19 +167,24 @@ RCT_EXPORT_METHOD(getAssets:(NSDictionary *)params
 }
 
 /* Get list of albums */
-RCT_EXPORT_METHOD(getAlbums: (RCTPromiseResolveBlock)resolve
+RCT_EXPORT_METHOD(getAlbums:(NSDictionary *)params
+                  resolve: (RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
   checkPhotoLibraryConfig(); // check if the permission is set in info.plist
   PHFetchOptions *fetchOptions = [[PHFetchOptions alloc] init];
+    fetchOptions.predicate = [NSPredicate predicateWithFormat:@"estimatedAssetCount > 0"];
   PHFetchResult<PHAssetCollection *> * _Nonnull albums = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeAlbum subtype:PHAssetCollectionSubtypeAny options:fetchOptions];
   
   NSMutableArray<NSDictionary<NSString *, id> *> *result = [NSMutableArray new];
   [albums enumerateObjectsUsingBlock:^(PHAssetCollection * _Nonnull album, NSUInteger index, BOOL * _Nonnull stop) {
+    PHFetchResult *assetsFetchResult = [PHAsset fetchAssetsInAssetCollection:album options:nil];
+    PHAsset *asset = [assetsFetchResult objectAtIndex:0];
     [result addObject:@{
                         @"title": [album localizedTitle],
-                        @"assetCount": @([album estimatedAssetCount])
-                        }];
+                        @"assetCount": @([album estimatedAssetCount]),
+                        @"firstImageUri": [self buildAssetUri:[asset localIdentifier] extension:@"JPG" lowQ:NO],
+                    }];
   }];
   
   resolve(
