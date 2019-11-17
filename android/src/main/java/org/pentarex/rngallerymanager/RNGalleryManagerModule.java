@@ -7,6 +7,7 @@ package org.pentarex.rngallerymanager;
 import android.database.Cursor;
 import android.os.Build;
 import android.provider.MediaStore;
+import android.util.Log;
 
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -101,7 +102,7 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
 
 
     @ReactMethod
-    public void getAlbums(final Promise promise) {
+    public void getAlbums(final ReadableMap params, final Promise promise) {
         if (isJellyBeanOrLater()) {
             promise.reject(new Exception("Version of Android must be > JellyBean"));
             return;
@@ -109,10 +110,12 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
 
         WritableMap response = new WritableNativeMap();
 
+        boolean includeVideo = params.getBoolean("includeVideo");
+        Log.d(RNGALLERY_MANAGER, "include vide: " + includeVideo);
 
         Cursor gallery = null;
         try {
-            gallery = GalleryCursorManager.getAlbumCursor(reactContext);
+            gallery = GalleryCursorManager.getAlbumCursor(reactContext, includeVideo);
             WritableArray albums = new WritableNativeArray();
             response.putInt("totalAlbums", gallery.getCount());
             gallery.moveToFirst();
