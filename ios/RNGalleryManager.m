@@ -110,6 +110,18 @@ RCT_EXPORT_METHOD(getAssets:(NSDictionary *)params
     
     fetchResults = [PHAsset fetchAssetsWithOptions:fetchOptions]; // get the assets
   }
+    
+    if (fetchResults == nil) {
+        __block PHFetchResult<PHAssetCollection *> * _Nonnull collections = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeSmartAlbum
+            subtype:PHAssetCollectionSubtypeAny
+            options:nil];
+        for(PHAssetCollection *collection in collections) {
+            if ([[collection localizedTitle] isEqualToString:albumName]) {
+                fetchResults = [PHAsset fetchAssetsInAssetCollection:collection options:fetchOptions];
+                break;
+            }
+        }
+    }
   
   BOOL __block hasMore = NO;
   NSInteger endIndex = startFrom + limit;
@@ -172,21 +184,47 @@ RCT_EXPORT_METHOD(getAlbums:(NSDictionary *)params
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
   checkPhotoLibraryConfig(); // check if the permission is set in info.plist
+    BOOL includeVideo = [[RCTConvert NSNumber:params[@"includeVideo"]] ?: @1 boolValue];
+    
+    NSPredicate *predicate = [RCTConvert PHAssetType: includeVideo ? @"all" : @"image"];
+    PHFetchOptions *fetchOptionsAssets = [[PHFetchOptions alloc] init];
+    fetchOptionsAssets.predicate = predicate;
   PHFetchOptions *fetchOptions = [[PHFetchOptions alloc] init];
     fetchOptions.predicate = [NSPredicate predicateWithFormat:@"estimatedAssetCount > 0"];
   PHFetchResult<PHAssetCollection *> * _Nonnull albums = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeAlbum subtype:PHAssetCollectionSubtypeAny options:fetchOptions];
   
   NSMutableArray<NSDictionary<NSString *, id> *> *result = [NSMutableArray new];
   [albums enumerateObjectsUsingBlock:^(PHAssetCollection * _Nonnull album, NSUInteger index, BOOL * _Nonnull stop) {
-    PHFetchResult *assetsFetchResult = [PHAsset fetchAssetsInAssetCollection:album options:nil];
-    PHAsset *asset = [assetsFetchResult objectAtIndex:0];
-    [result addObject:@{
-                        @"title": [album localizedTitle],
-                        @"assetCount": @([album estimatedAssetCount]),
-                        @"firstImageUri": [self buildAssetUri:[asset localIdentifier] extension:@"JPG" lowQ:NO],
-                    }];
+    PHFetchResult *assetsFetchResult = [PHAsset fetchAssetsInAssetCollection:album options:fetchOptionsAssets];
+      if ([assetsFetchResult count] > 0) {
+          PHAsset *asset = [assetsFetchResult objectAtIndex:0];
+          NSArray *resources = [PHAssetResource assetResourcesForAsset:asset ];
+          NSString *uit = ((PHAssetResource*)resources[0]).uniformTypeIdentifier;
+          CFStringRef extension = UTTypeCopyPreferredTagWithClass((__bridge CFStringRef _Nonnull)(uit), kUTTagClassFilenameExtension);
+          [result addObject:@{
+              @"title": [album localizedTitle],
+              @"assetCount": @([assetsFetchResult count]),
+              @"firstImageUri": [self buildAssetUri:[asset localIdentifier] extension:extension lowQ:NO],
+          }];
+      }
   }];
-  
+    
+    PHFetchResult<PHAssetCollection *> * _Nonnull smartAlbums = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeSmartAlbum subtype:PHAssetCollectionSubtypeAny options:nil];
+    [smartAlbums enumerateObjectsUsingBlock:^(PHAssetCollection * _Nonnull album, NSUInteger index, BOOL * _Nonnull stop) {
+      PHFetchResult *assetsFetchResult = [PHAsset fetchAssetsInAssetCollection:album options:fetchOptionsAssets];
+        if ([assetsFetchResult count] > 0) {
+            PHAsset *asset = [assetsFetchResult objectAtIndex:0];
+            NSArray *resources = [PHAssetResource assetResourcesForAsset:asset ];
+            NSString *uit = ((PHAssetResource*)resources[0]).uniformTypeIdentifier;
+            CFStringRef extension = UTTypeCopyPreferredTagWithClass((__bridge CFStringRef _Nonnull)(uit), kUTTagClassFilenameExtension);
+            [result addObject:@{
+                @"title": [album localizedTitle],
+                @"assetCount": @([assetsFetchResult count]),
+                @"firstImageUri": [self buildAssetUri:[asset localIdentifier] extension:extension lowQ:NO],
+            }];
+        }
+    }];
+    
   resolve(
           @{
             @"albums": result,
