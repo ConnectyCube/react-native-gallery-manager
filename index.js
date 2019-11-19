@@ -52,8 +52,8 @@ const GalleryManager = {
     /**
      * Get List with album names
      */
-    getAlbums() {
-        return RNGalleryManager.getAlbums();
+    getAlbums(params = {}) {
+        return RNGalleryManager.getAlbums(params);
     },
 
     /**
