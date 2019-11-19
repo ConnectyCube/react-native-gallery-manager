@@ -87,12 +87,13 @@ RCT_EXPORT_METHOD(getAssets:(NSDictionary *)params
   NSUInteger limit = [RCTConvert NSInteger:params[@"limit"]] ?: 10; // how many assets to return DEFAULT 10
   NSUInteger startFrom = [RCTConvert NSInteger:params[@"startFrom"]] ?: 0; // from which index should start DEFAULT 0
   NSString *albumName = [RCTConvert NSString:params[@"albumName"]] ?: @""; // album name
+  NSNumber *sortByCreatingDate = [RCTConvert NSNumber:params[@"sortByCreatingDate"]] ?: @1;
   
   
   // Build the options based on the user request (currently only type of assets)
   PHFetchOptions *fetchOptions = [[PHFetchOptions alloc] init];
   fetchOptions.predicate = predicate;
-  fetchOptions.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"creationDate" ascending:NO]];
+  fetchOptions.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"creationDate" ascending:[sortByCreatingDate boolValue]]];
   
   
   PHFetchResult<PHAsset *> * _Nonnull fetchResults;
@@ -185,9 +186,10 @@ RCT_EXPORT_METHOD(getAlbums:(NSDictionary *)params
 {
   checkPhotoLibraryConfig(); // check if the permission is set in info.plist
     BOOL includeVideo = [[RCTConvert NSNumber:params[@"includeVideo"]] ?: @1 boolValue];
-    
+    NSNumber *sortByCreatingDate = [RCTConvert NSNumber:params[@"sortByCreatingDate"]] ?: @1;
     NSPredicate *predicate = [RCTConvert PHAssetType: includeVideo ? @"all" : @"image"];
     PHFetchOptions *fetchOptionsAssets = [[PHFetchOptions alloc] init];
+    fetchOptionsAssets.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"creationDate" ascending:[sortByCreatingDate boolValue]]];
     fetchOptionsAssets.predicate = predicate;
   PHFetchOptions *fetchOptions = [[PHFetchOptions alloc] init];
     fetchOptions.predicate = [NSPredicate predicateWithFormat:@"estimatedAssetCount > 0"];
@@ -197,7 +199,7 @@ RCT_EXPORT_METHOD(getAlbums:(NSDictionary *)params
   [albums enumerateObjectsUsingBlock:^(PHAssetCollection * _Nonnull album, NSUInteger index, BOOL * _Nonnull stop) {
     PHFetchResult *assetsFetchResult = [PHAsset fetchAssetsInAssetCollection:album options:fetchOptionsAssets];
       if ([assetsFetchResult count] > 0) {
-          PHAsset *asset = [assetsFetchResult objectAtIndex:0];
+          PHAsset *asset = [assetsFetchResult firstObject];
           NSArray *resources = [PHAssetResource assetResourcesForAsset:asset ];
           NSString *uit = ((PHAssetResource*)resources[0]).uniformTypeIdentifier;
           CFStringRef extension = UTTypeCopyPreferredTagWithClass((__bridge CFStringRef _Nonnull)(uit), kUTTagClassFilenameExtension);
@@ -213,7 +215,7 @@ RCT_EXPORT_METHOD(getAlbums:(NSDictionary *)params
     [smartAlbums enumerateObjectsUsingBlock:^(PHAssetCollection * _Nonnull album, NSUInteger index, BOOL * _Nonnull stop) {
       PHFetchResult *assetsFetchResult = [PHAsset fetchAssetsInAssetCollection:album options:fetchOptionsAssets];
         if ([assetsFetchResult count] > 0) {
-            PHAsset *asset = [assetsFetchResult objectAtIndex:0];
+            PHAsset *asset = [assetsFetchResult firstObject];
             NSArray *resources = [PHAssetResource assetResourcesForAsset:asset ];
             NSString *uit = ((PHAssetResource*)resources[0]).uniformTypeIdentifier;
             CFStringRef extension = UTTypeCopyPreferredTagWithClass((__bridge CFStringRef _Nonnull)(uit), kUTTagClassFilenameExtension);
