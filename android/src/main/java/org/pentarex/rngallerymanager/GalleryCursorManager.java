@@ -64,7 +64,7 @@ public class GalleryCursorManager {
         return contentResolver.query(queryUri, projection, selection, selectionArgs, sortByAndLimit);
     }
 
-    public static Cursor getAlbumCursor(ReactApplicationContext reactContext, boolean includeVideo) {
+    public static Cursor getAlbumCursor(ReactApplicationContext reactContext, String mediaType) {
         String[] projection = new String[] {
                 MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
                 MediaStore.Images.ImageColumns.BUCKET_ID,
@@ -77,16 +77,28 @@ public class GalleryCursorManager {
                 "count(_data) as assetCount"
         };
 
-        ArrayList<String> list = new ArrayList<>();
 
         ContentResolver contentResolver = reactContext.getContentResolver();
         Uri queryUri = MediaStore.Files.getContentUri("external");
-        String BUCKET_GROUP_BY = MediaStore.Files.FileColumns.MEDIA_TYPE + "=" + MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE;
-        if (includeVideo) {
-            BUCKET_GROUP_BY += (" OR " + MediaStore.Files.FileColumns.MEDIA_TYPE + "=" + MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO);
-        }
-        BUCKET_GROUP_BY += " and 1) GROUP BY 1,(2";
+        String BUCKET_GROUP_BY = "";
 
+        switch (mediaType) {
+          case "image": {
+            BUCKET_GROUP_BY = MediaStore.Files.FileColumns.MEDIA_TYPE + "=" + MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE;
+            break;
+          }
+          case "video": {
+            BUCKET_GROUP_BY = MediaStore.Files.FileColumns.MEDIA_TYPE + "=" + MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO;
+            break;
+          }
+          default: {
+            BUCKET_GROUP_BY = MediaStore.Files.FileColumns.MEDIA_TYPE + "=" + MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE
+                              + " OR "
+                              + MediaStore.Files.FileColumns.MEDIA_TYPE + "=" + MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO;
+          }
+        }
+
+        BUCKET_GROUP_BY += " and 1) GROUP BY 1,(2";
         return contentResolver.query(queryUri, projection, BUCKET_GROUP_BY, null, null);
 
     }
