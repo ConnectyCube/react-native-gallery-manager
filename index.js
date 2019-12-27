@@ -53,6 +53,9 @@ const GalleryManager = {
      * Get List with album names
      */
     getAlbums(params = {}) {
+        if (Platform.OS === 'ios') {
+          params.includeVideo = (params.type !== "image")
+        }
         return RNGalleryManager.getAlbums(params);
     },
 
