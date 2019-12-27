@@ -110,12 +110,12 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
 
         WritableMap response = new WritableNativeMap();
 
-        boolean includeVideo = params.getBoolean("includeVideo");
-        Log.d(RNGALLERY_MANAGER, "include vide: " + includeVideo);
+        String mediaType = params.getString("type");
+        Log.d(RNGALLERY_MANAGER, "params: " + params);
 
         Cursor gallery = null;
         try {
-            gallery = GalleryCursorManager.getAlbumCursor(reactContext, includeVideo);
+            gallery = GalleryCursorManager.getAlbumCursor(reactContext, mediaType);
             WritableArray albums = new WritableNativeArray();
             response.putInt("totalAlbums", gallery.getCount());
             gallery.moveToFirst();
