@@ -87,12 +87,13 @@ RCT_EXPORT_METHOD(getAssets:(NSDictionary *)params
   NSUInteger limit = [RCTConvert NSInteger:params[@"limit"]] ?: 10; // how many assets to return DEFAULT 10
   NSUInteger startFrom = [RCTConvert NSInteger:params[@"startFrom"]] ?: 0; // from which index should start DEFAULT 0
   NSString *albumName = [RCTConvert NSString:params[@"albumName"]] ?: @""; // album name
+  NSNumber *sortByCreatingDate = [RCTConvert NSNumber:params[@"sortByCreatingDate"]] ?: @1;
   
   
   // Build the options based on the user request (currently only type of assets)
   PHFetchOptions *fetchOptions = [[PHFetchOptions alloc] init];
   fetchOptions.predicate = predicate;
-  fetchOptions.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"creationDate" ascending:NO]];
+  fetchOptions.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"creationDate" ascending:[sortByCreatingDate boolValue]]];
   
   
   PHFetchResult<PHAsset *> * _Nonnull fetchResults;
@@ -110,6 +111,18 @@ RCT_EXPORT_METHOD(getAssets:(NSDictionary *)params
     
     fetchResults = [PHAsset fetchAssetsWithOptions:fetchOptions]; // get the assets
   }
+    
+    if (fetchResults == nil) {
+        __block PHFetchResult<PHAssetCollection *> * _Nonnull collections = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeSmartAlbum
+            subtype:PHAssetCollectionSubtypeAny
+            options:nil];
+        for(PHAssetCollection *collection in collections) {
+            if ([[collection localizedTitle] isEqualToString:albumName]) {
+                fetchResults = [PHAsset fetchAssetsInAssetCollection:collection options:fetchOptions];
+                break;
+            }
+        }
+    }
   
   BOOL __block hasMore = NO;
   NSInteger endIndex = startFrom + limit;
@@ -166,22 +179,53 @@ RCT_EXPORT_METHOD(getAssets:(NSDictionary *)params
   
 }
 
+-(NSMutableArray<NSDictionary<NSString *, id> *> *) processAlbumsFetchResult:(PHFetchResult<PHAssetCollection *> * _Nonnull) albums withFetchOptions: (PHFetchOptions *)fetchOptionsAssets
+{
+    NSMutableArray<NSDictionary<NSString *, id> *> *result = [NSMutableArray new];
+    for(PHAssetCollection * _Nonnull album in albums) {
+        PHFetchResult *assetsFetchResult = [PHAsset fetchAssetsInAssetCollection:album options:fetchOptionsAssets];
+        for (PHAsset *asset in assetsFetchResult) {
+            NSArray *resources = [PHAssetResource assetResourcesForAsset:asset];
+            for(PHAssetResource* resourceItem in resources) {
+                NSString *uit = resourceItem.uniformTypeIdentifier;
+                CFStringRef extension = UTTypeCopyPreferredTagWithClass((__bridge CFStringRef _Nonnull)(uit), kUTTagClassFilenameExtension);
+                [result addObject:@{
+                    @"title": [album localizedTitle],
+                    @"assetCount": @([assetsFetchResult count]),
+                    @"firstImageUri": [self buildAssetUri:[asset localIdentifier] extension:extension lowQ:NO],
+                }];
+                break;
+            }
+            break;
+        }
+    }
+    return result;
+}
+
 /* Get list of albums */
-RCT_EXPORT_METHOD(getAlbums: (RCTPromiseResolveBlock)resolve
+RCT_EXPORT_METHOD(getAlbums:(NSDictionary *)params
+                  resolve: (RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
   checkPhotoLibraryConfig(); // check if the permission is set in info.plist
+    BOOL includeVideo = [[RCTConvert NSNumber:params[@"includeVideo"]] ?: @1 boolValue];
+    NSNumber *sortByCreatingDate = [RCTConvert NSNumber:params[@"sortByCreatingDate"]] ?: @1;
+    NSPredicate *predicate = [RCTConvert PHAssetType: includeVideo ? @"all" : @"image"];
+    PHFetchOptions *fetchOptionsAssets = [[PHFetchOptions alloc] init];
+    fetchOptionsAssets.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"creationDate" ascending:[sortByCreatingDate boolValue]]];
+    fetchOptionsAssets.predicate = predicate;
   PHFetchOptions *fetchOptions = [[PHFetchOptions alloc] init];
+    fetchOptions.predicate = [NSPredicate predicateWithFormat:@"estimatedAssetCount > 0"];
+    
   PHFetchResult<PHAssetCollection *> * _Nonnull albums = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeAlbum subtype:PHAssetCollectionSubtypeAny options:fetchOptions];
-  
-  NSMutableArray<NSDictionary<NSString *, id> *> *result = [NSMutableArray new];
-  [albums enumerateObjectsUsingBlock:^(PHAssetCollection * _Nonnull album, NSUInteger index, BOOL * _Nonnull stop) {
-    [result addObject:@{
-                        @"title": [album localizedTitle],
-                        @"assetCount": @([album estimatedAssetCount])
-                        }];
-  }];
-  
+  NSMutableArray<NSDictionary<NSString *, id> *> *resultsDefaultAlbums = [self processAlbumsFetchResult:albums withFetchOptions:fetchOptionsAssets];
+    
+    PHFetchResult<PHAssetCollection *> * _Nonnull smartAlbums = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeSmartAlbum subtype:PHAssetCollectionSubtypeAny options:nil];
+       NSMutableArray<NSDictionary<NSString *, id> *> *resultsSmartAlbums = [self processAlbumsFetchResult:smartAlbums withFetchOptions:fetchOptionsAssets];
+
+  NSMutableArray<NSDictionary<NSString *, id> *> *result = [NSMutableArray arrayWithArray:resultsDefaultAlbums];
+    [result addObjectsFromArray:resultsSmartAlbums];
+    
   resolve(
           @{
             @"albums": result,
