@@ -179,6 +179,29 @@ RCT_EXPORT_METHOD(getAssets:(NSDictionary *)params
   
 }
 
+-(NSMutableArray<NSDictionary<NSString *, id> *> *) processAlbumsFetchResult:(PHFetchResult<PHAssetCollection *> * _Nonnull) albums withFetchOptions: (PHFetchOptions *)fetchOptionsAssets
+{
+    NSMutableArray<NSDictionary<NSString *, id> *> *result = [NSMutableArray new];
+    for(PHAssetCollection * _Nonnull album in albums) {
+        PHFetchResult *assetsFetchResult = [PHAsset fetchAssetsInAssetCollection:album options:fetchOptionsAssets];
+        for (PHAsset *asset in assetsFetchResult) {
+            NSArray *resources = [PHAssetResource assetResourcesForAsset:asset];
+            for(PHAssetResource* resourceItem in resources) {
+                NSString *uit = resourceItem.uniformTypeIdentifier;
+                CFStringRef extension = UTTypeCopyPreferredTagWithClass((__bridge CFStringRef _Nonnull)(uit), kUTTagClassFilenameExtension);
+                [result addObject:@{
+                    @"title": [album localizedTitle],
+                    @"assetCount": @([assetsFetchResult count]),
+                    @"firstImageUri": [self buildAssetUri:[asset localIdentifier] extension:extension lowQ:NO],
+                }];
+                break;
+            }
+            break;
+        }
+    }
+    return result;
+}
+
 /* Get list of albums */
 RCT_EXPORT_METHOD(getAlbums:(NSDictionary *)params
                   resolve: (RCTPromiseResolveBlock)resolve
@@ -193,47 +216,15 @@ RCT_EXPORT_METHOD(getAlbums:(NSDictionary *)params
     fetchOptionsAssets.predicate = predicate;
   PHFetchOptions *fetchOptions = [[PHFetchOptions alloc] init];
     fetchOptions.predicate = [NSPredicate predicateWithFormat:@"estimatedAssetCount > 0"];
+    
   PHFetchResult<PHAssetCollection *> * _Nonnull albums = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeAlbum subtype:PHAssetCollectionSubtypeAny options:fetchOptions];
-  
-  NSMutableArray<NSDictionary<NSString *, id> *> *result = [NSMutableArray new];
-  [albums enumerateObjectsUsingBlock:^(PHAssetCollection * _Nonnull album, NSUInteger index, BOOL * _Nonnull stop) {
-    PHFetchResult *assetsFetchResult = [PHAsset fetchAssetsInAssetCollection:album options:fetchOptionsAssets];
-      if ([assetsFetchResult count] < 1) {
-          return;
-      }
-      PHAsset *asset = [assetsFetchResult firstObject];
-      NSArray *resources = [PHAssetResource assetResourcesForAsset:asset];
-      if ([resources count] < 1) {
-          return;
-      }
-      NSString *uit = ((PHAssetResource*)resources[0]).uniformTypeIdentifier;
-      CFStringRef extension = UTTypeCopyPreferredTagWithClass((__bridge CFStringRef _Nonnull)(uit), kUTTagClassFilenameExtension);
-      [result addObject:@{
-          @"title": [album localizedTitle],
-          @"assetCount": @([assetsFetchResult count]),
-          @"firstImageUri": [self buildAssetUri:[asset localIdentifier] extension:extension lowQ:NO],
-      }];
-  }];
+  NSMutableArray<NSDictionary<NSString *, id> *> *resultsDefaultAlbums = [self processAlbumsFetchResult:albums withFetchOptions:fetchOptionsAssets];
     
     PHFetchResult<PHAssetCollection *> * _Nonnull smartAlbums = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeSmartAlbum subtype:PHAssetCollectionSubtypeAny options:nil];
-    [smartAlbums enumerateObjectsUsingBlock:^(PHAssetCollection * _Nonnull album, NSUInteger index, BOOL * _Nonnull stop) {
-      PHFetchResult *assetsFetchResult = [PHAsset fetchAssetsInAssetCollection:album options:fetchOptionsAssets];
-        if ([assetsFetchResult count] < 1) {
-            return;
-        }
-        PHAsset *asset = [assetsFetchResult firstObject];
-        NSArray *resources = [PHAssetResource assetResourcesForAsset:asset];
-        if ([resources count] < 1) {
-            return;
-        }
-        NSString *uit = ((PHAssetResource*)resources[0]).uniformTypeIdentifier;
-        CFStringRef extension = UTTypeCopyPreferredTagWithClass((__bridge CFStringRef _Nonnull)(uit), kUTTagClassFilenameExtension);
-        [result addObject:@{
-            @"title": [album localizedTitle],
-            @"assetCount": @([assetsFetchResult count]),
-            @"firstImageUri": [self buildAssetUri:[asset localIdentifier] extension:extension lowQ:NO],
-        }];
-    }];
+       NSMutableArray<NSDictionary<NSString *, id> *> *resultsSmartAlbums = [self processAlbumsFetchResult:smartAlbums withFetchOptions:fetchOptionsAssets];
+
+  NSMutableArray<NSDictionary<NSString *, id> *> *result = [NSMutableArray arrayWithArray:resultsDefaultAlbums];
+    [result addObjectsFromArray:resultsSmartAlbums];
     
   resolve(
           @{
