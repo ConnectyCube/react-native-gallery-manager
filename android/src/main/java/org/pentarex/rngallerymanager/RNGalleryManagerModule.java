@@ -5,6 +5,7 @@
 package org.pentarex.rngallerymanager;
 
 import android.database.Cursor;
+import android.net.Uri;
 import android.os.Build;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -19,6 +20,7 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
 
+import java.io.File;
 import java.util.Collection;
 
 public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
@@ -144,7 +146,7 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
         String fileName = gallery.getString(gallery.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME));
         Double height = gallery.getDouble(gallery.getColumnIndex(MediaStore.Files.FileColumns.HEIGHT));
         Double width = gallery.getDouble(gallery.getColumnIndex(MediaStore.Files.FileColumns.WIDTH));
-        String uri = "file://" + gallery.getString(gallery.getColumnIndex(MediaStore.Files.FileColumns.DATA));
+        String uri = Uri.fromFile(new File(gallery.getString(gallery.getColumnIndex(MediaStore.Files.FileColumns.DATA)))).toString();
         Double id = gallery.getDouble(gallery.getColumnIndex(MediaStore.Files.FileColumns._ID));
 
 

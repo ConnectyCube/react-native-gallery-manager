@@ -110,7 +110,7 @@ public class GalleryCursorManager {
             String     path      = allMediaItems.getString(allMediaItems.getColumnIndexOrThrow(MediaStore.Images.ImageColumns.DATA));
             String     title     = allMediaItems.getString(allMediaItems.getColumnIndexOrThrow(MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME));
 
-            AlbumFolder albumFolder = folders.containsKey(title) ? folders.get(title) : new AlbumFolder(title, path);
+            AlbumFolder albumFolder = folders.containsKey(title) ? folders.get(title) : new AlbumFolder(title, Uri.fromFile(new File(path)).toString());
             albumFolder.incItemsCount();
             folders.put(title, albumFolder);
         }
