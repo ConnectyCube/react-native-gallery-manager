@@ -19,6 +19,8 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
 
+import java.util.Collection;
+
 public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
 
     public static final String RNGALLERY_MANAGER = "RNGalleryManager";
@@ -113,16 +115,15 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
         String mediaType = params.getString("type");
         Log.d(RNGALLERY_MANAGER, "params: " + params);
 
-        Cursor gallery = null;
+        Collection<GalleryCursorManager.AlbumFolder> albumsFolders = null;
         try {
-            gallery = GalleryCursorManager.getAlbumCursor(reactContext, mediaType);
+            albumsFolders = GalleryCursorManager.getAlbumCursor(reactContext, mediaType);
             WritableArray albums = new WritableNativeArray();
-            response.putInt("totalAlbums", gallery.getCount());
-            gallery.moveToFirst();
-            do {
-                WritableMap album = getAlbum(gallery, mediaType);
+            response.putInt("totalAlbums", albumsFolders.size());
+            for(GalleryCursorManager.AlbumFolder albumFolder: albumsFolders) {
+                WritableMap album = getAlbum(albumFolder);
                 albums.pushMap(album);
-            } while (gallery.moveToNext());
+            }
 
             response.putArray("albums", albums);
 
@@ -131,7 +132,6 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
         } catch (SecurityException ex) {
             System.err.println(ex);
         } finally {
-            if (gallery != null) gallery.close();
         }
 
     }
@@ -168,14 +168,11 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
         return asset;
     }
 
-    private WritableMap getAlbum(Cursor gallery, String mediaType) {
+    private WritableMap getAlbum(GalleryCursorManager.AlbumFolder albumFolder) {
         WritableMap album = new WritableNativeMap();
-        String albumName = gallery.getString(gallery.getColumnIndex(MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME));
-        Cursor assets = GalleryCursorManager.getAssetCursor(mediaType, albumName, reactContext);
-        int assetCount = assets.getCount();
-        album.putString("title", albumName);
-        album.putInt("assetCount", assetCount);
-        String firstImageUri = "file://" + gallery.getString(gallery.getColumnIndex(MediaStore.Images.ImageColumns.DATA));
+        album.putString("title", albumFolder.title);
+        album.putInt("assetCount", albumFolder.itemsCount);
+        String firstImageUri = "file://" + albumFolder.firstImagePath;
         album.putString("firstImageUri", firstImageUri);
         return album;
     }
