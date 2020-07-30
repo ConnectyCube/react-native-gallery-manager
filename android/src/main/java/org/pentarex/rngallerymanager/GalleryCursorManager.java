@@ -74,7 +74,6 @@ public class GalleryCursorManager {
                 MediaStore.Video.VideoColumns.BUCKET_ID,
                 MediaStore.Video.VideoColumns.DATE_MODIFIED,
                 MediaStore.Video.VideoColumns.DATA,
-                "count(_data) as assetCount"
         };
 
 
