@@ -120,7 +120,7 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
             response.putInt("totalAlbums", gallery.getCount());
             gallery.moveToFirst();
             do {
-                WritableMap album = getAlbum(gallery);
+                WritableMap album = getAlbum(gallery, mediaType);
                 albums.pushMap(album);
             } while (gallery.moveToNext());
 
@@ -168,10 +168,11 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
         return asset;
     }
 
-    private WritableMap getAlbum(Cursor gallery) {
+    private WritableMap getAlbum(Cursor gallery, String mediaType) {
         WritableMap album = new WritableNativeMap();
         String albumName = gallery.getString(gallery.getColumnIndex(MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME));
-        int assetCount = gallery.getInt(gallery.getColumnIndex("assetCount"));
+        Cursor assets = GalleryCursorManager.getAssetCursor(mediaType, albumName, reactContext);
+        int assetCount = assets.getCount();
         album.putString("title", albumName);
         album.putInt("assetCount", assetCount);
         String firstImageUri = "file://" + gallery.getString(gallery.getColumnIndex(MediaStore.Images.ImageColumns.DATA));
