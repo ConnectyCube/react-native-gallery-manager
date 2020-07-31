@@ -8,7 +8,10 @@ import android.provider.MediaStore;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableMap;
 
+import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 
 /**
  * Created by pentarex on 26.01.18.
@@ -64,7 +67,7 @@ public class GalleryCursorManager {
         return contentResolver.query(queryUri, projection, selection, selectionArgs, sortByAndLimit);
     }
 
-    public static Cursor getAlbumCursor(ReactApplicationContext reactContext, String mediaType) {
+    public static Collection<AlbumFolder> getAlbumCursor(ReactApplicationContext reactContext, String mediaType) {
         String[] projection = new String[] {
                 MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
                 MediaStore.Images.ImageColumns.BUCKET_ID,
@@ -74,7 +77,6 @@ public class GalleryCursorManager {
                 MediaStore.Video.VideoColumns.BUCKET_ID,
                 MediaStore.Video.VideoColumns.DATE_MODIFIED,
                 MediaStore.Video.VideoColumns.DATA,
-                "count(_data) as assetCount"
         };
 
 
@@ -98,8 +100,41 @@ public class GalleryCursorManager {
           }
         }
 
-        BUCKET_GROUP_BY += " and 1) GROUP BY 1,(2";
-        return contentResolver.query(queryUri, projection, BUCKET_GROUP_BY, null, null);
+        String sortBy = MediaStore.Images.Media.BUCKET_DISPLAY_NAME + " COLLATE NOCASE ASC, " + MediaStore.Files.FileColumns.DATE_ADDED + " DESC";
 
+        Cursor allMediaItems = contentResolver.query(queryUri, projection, BUCKET_GROUP_BY, null, sortBy);
+
+        HashMap<String, AlbumFolder> folders = new HashMap<String, AlbumFolder>();
+
+        while (allMediaItems != null && allMediaItems.moveToNext()) {
+            String     path      = allMediaItems.getString(allMediaItems.getColumnIndexOrThrow(MediaStore.Images.ImageColumns.DATA));
+            String     title     = allMediaItems.getString(allMediaItems.getColumnIndexOrThrow(MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME));
+
+            AlbumFolder albumFolder = folders.containsKey(title) ? folders.get(title) : new AlbumFolder(title, Uri.fromFile(new File(path)).toString());
+            albumFolder.incItemsCount();
+            folders.put(title, albumFolder);
+        }
+
+        if (allMediaItems != null) {
+            allMediaItems.close();
+        }
+
+        return folders.values();
+    }
+
+    public static class AlbumFolder {
+        String title;
+        String firstImagePath;
+        int itemsCount;
+
+        AlbumFolder(String title, String firstImagePath) {
+            this.title = title;
+            this.firstImagePath = firstImagePath;
+            itemsCount = 0;
+        }
+
+        int incItemsCount() {
+            return this.itemsCount += 1;
+        }
     }
 }

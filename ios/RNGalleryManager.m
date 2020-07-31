@@ -184,20 +184,22 @@ RCT_EXPORT_METHOD(getAssets:(NSDictionary *)params
     NSMutableArray<NSDictionary<NSString *, id> *> *result = [NSMutableArray new];
     for(PHAssetCollection * _Nonnull album in albums) {
         PHFetchResult *assetsFetchResult = [PHAsset fetchAssetsInAssetCollection:album options:fetchOptionsAssets];
-        for (PHAsset *asset in assetsFetchResult) {
-            NSArray *resources = [PHAssetResource assetResourcesForAsset:asset];
-            for(PHAssetResource* resourceItem in resources) {
-                NSString *uit = resourceItem.uniformTypeIdentifier;
-                CFStringRef extension = UTTypeCopyPreferredTagWithClass((__bridge CFStringRef _Nonnull)(uit), kUTTagClassFilenameExtension);
-                [result addObject:@{
-                    @"title": [album localizedTitle],
-                    @"assetCount": @([assetsFetchResult count]),
-                    @"firstImageUri": [self buildAssetUri:[asset localIdentifier] extension:extension lowQ:NO],
-                }];
-                break;
-            }
-            break;
+        if ([assetsFetchResult count] < 1) {
+            continue;
         }
+        PHAsset *asset = [assetsFetchResult firstObject];
+        NSArray *resources = [PHAssetResource assetResourcesForAsset:asset];
+        if ([resources count] < 1) {
+            continue;
+        }
+        PHAssetResource* resourceItem = [resources firstObject];
+        NSString *uit = resourceItem.uniformTypeIdentifier;
+        CFStringRef extension = UTTypeCopyPreferredTagWithClass((__bridge CFStringRef _Nonnull)(uit), kUTTagClassFilenameExtension);
+        [result addObject:@{
+            @"title": [album localizedTitle],
+            @"assetCount": @([assetsFetchResult count]),
+            @"firstImageUri": [self buildAssetUri:[asset localIdentifier] extension:extension lowQ:NO],
+        }];
     }
     return result;
 }

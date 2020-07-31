@@ -5,6 +5,7 @@
 package org.pentarex.rngallerymanager;
 
 import android.database.Cursor;
+import android.net.Uri;
 import android.os.Build;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -18,6 +19,9 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
+
+import java.io.File;
+import java.util.Collection;
 
 public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
 
@@ -113,16 +117,15 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
         String mediaType = params.getString("type");
         Log.d(RNGALLERY_MANAGER, "params: " + params);
 
-        Cursor gallery = null;
+        Collection<GalleryCursorManager.AlbumFolder> albumsFolders = null;
         try {
-            gallery = GalleryCursorManager.getAlbumCursor(reactContext, mediaType);
+            albumsFolders = GalleryCursorManager.getAlbumCursor(reactContext, mediaType);
             WritableArray albums = new WritableNativeArray();
-            response.putInt("totalAlbums", gallery.getCount());
-            gallery.moveToFirst();
-            do {
-                WritableMap album = getAlbum(gallery);
+            response.putInt("totalAlbums", albumsFolders.size());
+            for(GalleryCursorManager.AlbumFolder albumFolder: albumsFolders) {
+                WritableMap album = getAlbum(albumFolder);
                 albums.pushMap(album);
-            } while (gallery.moveToNext());
+            }
 
             response.putArray("albums", albums);
 
@@ -131,7 +134,6 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
         } catch (SecurityException ex) {
             System.err.println(ex);
         } finally {
-            if (gallery != null) gallery.close();
         }
 
     }
@@ -144,7 +146,7 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
         String fileName = gallery.getString(gallery.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME));
         Double height = gallery.getDouble(gallery.getColumnIndex(MediaStore.Files.FileColumns.HEIGHT));
         Double width = gallery.getDouble(gallery.getColumnIndex(MediaStore.Files.FileColumns.WIDTH));
-        String uri = "file://" + gallery.getString(gallery.getColumnIndex(MediaStore.Files.FileColumns.DATA));
+        String uri = Uri.fromFile(new File(gallery.getString(gallery.getColumnIndex(MediaStore.Files.FileColumns.DATA)))).toString();
         Double id = gallery.getDouble(gallery.getColumnIndex(MediaStore.Files.FileColumns._ID));
 
 
@@ -168,13 +170,11 @@ public class RNGalleryManagerModule extends ReactContextBaseJavaModule {
         return asset;
     }
 
-    private WritableMap getAlbum(Cursor gallery) {
+    private WritableMap getAlbum(GalleryCursorManager.AlbumFolder albumFolder) {
         WritableMap album = new WritableNativeMap();
-        String albumName = gallery.getString(gallery.getColumnIndex(MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME));
-        int assetCount = gallery.getInt(gallery.getColumnIndex("assetCount"));
-        album.putString("title", albumName);
-        album.putInt("assetCount", assetCount);
-        String firstImageUri = "file://" + gallery.getString(gallery.getColumnIndex(MediaStore.Images.ImageColumns.DATA));
+        album.putString("title", albumFolder.title);
+        album.putInt("assetCount", albumFolder.itemsCount);
+        String firstImageUri = "file://" + albumFolder.firstImagePath;
         album.putString("firstImageUri", firstImageUri);
         return album;
     }
