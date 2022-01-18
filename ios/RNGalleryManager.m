@@ -187,12 +187,12 @@ RCT_EXPORT_METHOD(getAssets:(NSDictionary *)params
         if ([assetsFetchResult count] < 1) {
             continue;
         }
-        PHAsset *asset = [assetsFetchResult firstObject];
+        PHAsset *asset = [assetsFetchResult lastObject];
         NSArray *resources = [PHAssetResource assetResourcesForAsset:asset];
         if ([resources count] < 1) {
             continue;
         }
-        PHAssetResource* resourceItem = [resources firstObject];
+        PHAssetResource* resourceItem = [resources lastObject];
         NSString *uit = resourceItem.uniformTypeIdentifier;
         CFStringRef extension = UTTypeCopyPreferredTagWithClass((__bridge CFStringRef _Nonnull)(uit), kUTTagClassFilenameExtension);
         [result addObject:@{
